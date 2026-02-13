@@ -10,6 +10,26 @@ No Linux/Ubuntu: chmod +x setup.sh && ./setup.sh
 Configure suas credenciais:
 Edite o arquivo config.json gerado na raiz do projeto com suas informações de API ou FTP.
 
+{
+    "WATCH_DIRECTORY": "<pasta que deseja sincronizar>",
+    "CHECK_INTERVAL": <segundos>,
+    "MAX_FILE_SIZE_MB": <tamanho em mega, ex: 50 = 50MB>,
+    "SYNC_DESTINATIONS": {
+        "api": true,
+        "ftp": true
+    },
+    "API_CONFIG": {
+        "URL": "<url da sua storage>",
+        "TOKEN": "<token bearer de autenticacao>"
+    },
+    "FTP_CONFIG": {
+        "HOST": "<host do servidor ftp>,
+        "USER": "<usuario>",
+        "PASS": "<senha>",
+        "REMOTE_DIR": "<pasta de destino, ex: /backup>"
+    }
+}
+
 Inicie o agente:
 
 🛠️ Configuração (config.json)
