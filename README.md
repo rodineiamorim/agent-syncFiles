@@ -1,6 +1,37 @@
 # agent-syncFiles
 Agente para sincronizar arquivos (cliente em python3)
 
+# 📂 Agent-SyncFiles
+
+**Agent-SyncFiles** é um agente de sincronização de arquivos leve, resiliente e multiplataforma. Ele permite monitorar pastas locais e espelhar arquivos automaticamente para múltiplos destinos, como servidores **FTP** e **APIs REST (Supabase/Edge Functions)**, de forma simultânea ou seletiva.
+
+---
+
+## ✨ Funcionalidades
+
+- 🔄 **Sincronização Híbrida:** Envie arquivos para uma API REST, um servidor FTP ou ambos ao mesmo tempo.
+- 🚀 **Polling Inteligente:** Sistema de varredura periódica que detecta mudanças sem depender de eventos instáveis do Sistema Operacional.
+- 🛡️ **Deduplicação por Hash:** Utiliza MD5 para garantir que apenas arquivos que sofreram alteração real de conteúdo sejam enviados, economizando banda.
+- 📦 **Gerenciamento de Exclusões:** Detecta quando um arquivo é deletado localmente e replica a ação no servidor remoto.
+- ⚙️ **Configuração Dinâmica:** Todo o comportamento (Tokens, Hosts, Intervalos) é gerenciado via arquivo JSON externo.
+- 🗄️ **Persistência de Estado:** Mantém um banco de dados local (`sync_db.json`) para rastrear IDs remotos e versões de arquivos.
+
+---
+
+## 🚀 Como Começar
+
+### Pré-requisitos
+- Python 3.8 ou superior
+- Pip (gerenciador de pacotes)
+
+### Instalação Rápida
+
+1. **Clone o repositório:**
+   ```bash
+   git clone [https://github.com/rodineiamorim/agent-syncFiles.git](https://github.com/rodineiamorim/agent-syncFiles.git)
+   cd agent-syncFiles
+
+
 # Execute o script de setup:
 
 No Windows: setup.bat
