@@ -1,7 +1,0 @@
-{
-  "WATCH_DIRECTORY": "<caminho da pasta a ser monitorada>",
-  "BASE_URL": "<url do servidor de upload>",
-  "TOKEN": "<token de autenticação para o servidor de upload>",
-  "CHECK_INTERVAL": 1,
-  "MAX_FILE_SIZE_MB": 50
-}
