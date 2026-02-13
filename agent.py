@@ -125,6 +125,10 @@ class SyncAgent:
 
 if __name__ == "__main__":
     agent = SyncAgent()
+    # Checa se o diretório de monitoramento existe
+    if not os.path.exists(agent.config.WATCH_DIR):
+        print(f"❌ Diretório de monitoramento não encontrado: {agent.config.WATCH_DIR}. Encerrando.")
+        exit(1)
     print(f"🚀 Agente Híbrido Iniciado (Destinos: {list(agent.transports.keys())})")
     while True:
         try:
