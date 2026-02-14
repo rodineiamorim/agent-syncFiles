@@ -22,14 +22,25 @@ class APITransport:
         self.url = config['URL']
         self.headers = {"Authorization": f"Bearer {config['TOKEN']}"}
 
-    def upload(self, local_path, filename):
-        with open(local_path, 'rb') as f:
-            r = requests.post(f"{self.url}?action=upload", headers=self.headers, files={'file': (filename, f)})
-            return r.json().get('id') if r.status_code == 200 else None
+    def mkdir(self, folder_name, parent_id=None):
+        """Cria uma pasta na API e retorna o ID dela."""
+        payload = {"name": folder_name, "parent_id": parent_id}
+        try:
+            r = requests.post(f"{self.url}?action=mkdir", headers=self.headers, json=payload)
+            if r.status_code in [200, 201]:
+                return r.json().get('id')
+        except Exception as e:
+            print(f"❌ Erro API mkdir: {e}")
+        return None
 
-    def delete(self, file_id):
-        payload = {"id": file_id, "type": "file", "permanent": False}
-        requests.post(f"{self.url}?action=delete", headers=self.headers, json=payload)
+    def upload(self, local_path, filename, folder_id=None):
+        with open(local_path, 'rb') as f:
+            data = {'folder_id': folder_id} if folder_id else {}
+            r = requests.post(f"{self.url}?action=upload", 
+                              headers=self.headers, 
+                              files={'file': (filename, f)},
+                              data=data)
+            return r.json().get('id') if r.status_code == 200 else None
 
 class FTPTransport:
     def __init__(self, config):
@@ -38,28 +49,41 @@ class FTPTransport:
     def _get_conn(self):
         ftp = FTP(self.cfg['HOST'])
         ftp.login(self.cfg['USER'], self.cfg['PASS'])
-        if self.cfg['REMOTE_DIR']:
-            ftp.cwd(self.cfg['REMOTE_DIR'])
         return ftp
 
-    def upload(self, local_path, filename):
+    def mkdir(self, remote_path):
+        """Cria pastas recursivamente no FTP."""
+        ftp = self._get_conn()
+        parts = remote_path.split(os.sep)
+        current_path = self.cfg.get('REMOTE_DIR', '/')
+        ftp.cwd(current_path)
+        
+        for part in parts:
+            if not part: continue
+            try:
+                ftp.cwd(part)
+            except:
+                ftp.mkd(part)
+                ftp.cwd(part)
+        ftp.quit()
+
+    def upload(self, local_path, filename, remote_subfolder=""):
         try:
             ftp = self._get_conn()
+            target_dir = os.path.join(self.cfg.get('REMOTE_DIR', '/'), remote_subfolder)
+            
+            # Garante que a pasta de destino existe
+            try: ftp.cwd(target_dir)
+            except: self.mkdir(remote_subfolder); ftp.cwd(target_dir)
+            
             with open(local_path, 'rb') as f:
                 ftp.storbinary(f'STOR {filename}', f)
             ftp.quit()
-            return filename # FTP não tem UUID, usamos o nome como ID
+            return filename
         except Exception as e:
-            print(f"❌ Erro FTP: {e}")
+            print(f"❌ Erro FTP Upload: {e}")
             return None
-
-    def delete(self, filename):
-        try:
-            ftp = self._get_conn()
-            ftp.delete(filename)
-            ftp.quit()
-        except: pass
-
+        
 # --- CORE DO AGENTE ---
 
 class SyncAgent:
@@ -91,7 +115,29 @@ class SyncAgent:
 
     def sync(self):
         current_paths = {}
-        for root, _, files in os.walk(self.config.WATCH_DIR):
+        for root, dirs, files in os.walk(self.config.WATCH_DIR):
+            # 1. Sincronizar Pastas Primeiro
+            relative_path = os.path.relpath(root, self.config.WATCH_DIR)
+            
+            if relative_path != ".":
+                # Lógica para garantir que a pasta existe no DB/Servidor
+                if root not in self.db:
+                    print(f"📂 Criando pasta remota: {relative_path}")
+                    ids = {}
+                    if "api" in self.transports:
+                        # Para APIs complexas, você precisaria do ID da pasta pai. 
+                        # Aqui simplificamos criando a pasta pelo nome.
+                        res_id = self.transports["api"].mkdir(os.path.basename(root))
+                        if res_id: ids["api"] = res_id
+                    
+                    if "ftp" in self.transports:
+                        self.transports["ftp"].mkdir(relative_path)
+                        ids["ftp"] = relative_path
+                    
+                    self.db[root] = {"type": "folder", "ids": ids, "hash": "dir"}
+                    self._save_db()
+
+            # 2. Sincronizar Arquivos
             for name in files:
                 if "~" in name or name.endswith(".tmp"): continue
                 path = os.path.join(root, name)
@@ -101,28 +147,25 @@ class SyncAgent:
                 cached = self.db.get(path, {})
 
                 if cached.get('hash') != f_hash:
-                    print(f"🔄 Sincronizando: {name}")
-                    ids = {}
-                    # Envia para todos os transportes ativos
-                    for t_name, transport in self.transports.items():
-                        res_id = transport.upload(path, name)
-                        if res_id: ids[t_name] = res_id
+                    print(f"🔄 Sincronizando arquivo: {name}")
                     
+                    # Recupera o ID da pasta onde o arquivo está (para a API)
+                    parent_folder_info = self.db.get(root, {})
+                    folder_id_api = parent_folder_info.get('ids', {}).get('api')
+                    
+                    ids = {}
+                    if "api" in self.transports:
+                        res_id = self.transports["api"].upload(path, name, folder_id_api)
+                        if res_id: ids["api"] = res_id
+                    
+                    if "ftp" in self.transports:
+                        res_id = self.transports["ftp"].upload(path, name, relative_path)
+                        if res_id: ids["ftp"] = res_id
+
                     if ids:
-                        self.db[path] = {"hash": f_hash, "ids": ids}
+                        self.db[path] = {"type": "file", "hash": f_hash, "ids": ids}
                         self._save_db()
-
-        # Check exclusões
-        for path in list(self.db.keys()):
-            if path not in current_paths:
-                print(f"🗑️ Deletando remoto: {os.path.basename(path)}")
-                cached = self.db[path]
-                for t_name, transport in self.transports.items():
-                    remote_id = cached.get('ids', {}).get(t_name)
-                    if remote_id: transport.delete(remote_id)
-                del self.db[path]
-                self._save_db()
-
+                        
 if __name__ == "__main__":
     agent = SyncAgent()
     # Checa se o diretório de monitoramento existe
