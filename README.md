@@ -51,13 +51,16 @@ Edite o arquivo config.json gerado na raiz do projeto com suas informações de 
     },
     "API_CONFIG": {
         "URL": "<url da sua storage>",
-        "TOKEN": "<token bearer de autenticacao>"
+        "TOKEN": "<token bearer de autenticacao>",
+         "RECURSIVE_RM": true ou false <exclusao recursiva>
     },
     "FTP_CONFIG": {
         "HOST": "<host do servidor ftp>,
         "USER": "<usuario>",
         "PASS": "<senha>",
-        "REMOTE_DIR": "<pasta de destino, ex: /backup>"
+        "REMOTE_DIR": "<pasta de destino, ex: /backup>",
+        "USE_TLS": false,
+        "RECURSIVE_RM": true ou false <exclusao recursiva>
     }
 }
 
