@@ -41,6 +41,17 @@ class APITransport:
                               files={'file': (filename, f)},
                               data=data)
             return r.json().get('id') if r.status_code == 200 else None
+        
+    def delete(self, item_id, is_folder=False):
+        """Remove arquivo ou pasta na API."""
+        item_type = "folder" if is_folder else "file"
+        payload = {"id": item_id, "type": item_type, "permanent": False}
+        try:
+            r = requests.post(f"{self.url}?action=delete", headers=self.headers, json=payload)
+            return r.status_code == 200
+        except Exception as e:
+            print(f"❌ Erro API delete: {e}")
+            return False
 
 class FTPTransport:
     def __init__(self, config):
@@ -83,6 +94,23 @@ class FTPTransport:
         except Exception as e:
             print(f"❌ Erro FTP Upload: {e}")
             return None
+        
+    def delete(self, remote_path, is_folder=False):
+        """Remove arquivo ou pasta no FTP."""
+        try:
+            ftp = self._get_conn()
+            if is_folder:
+                # Nota: FTP padrão só deleta pastas vazias via rmd. 
+                # Para pastas com conteúdo, teríamos que limpar tudo dentro.
+                # Aqui removemos a pasta alvo.
+                ftp.rmd(remote_path)
+            else:
+                ftp.delete(remote_path)
+            ftp.quit()
+            return True
+        except Exception as e:
+            print(f"⚠️ Aviso FTP delete: {e}")
+            return False
         
 # --- CORE DO AGENTE ---
 
@@ -140,6 +168,7 @@ class SyncAgent:
             # 2. Sincronizar Arquivos
             for name in files:
                 if "~" in name or name.endswith(".tmp"): continue
+                if name == "sync_db.json": continue  # Ignora o arquivo de banco de dados
                 path = os.path.join(root, name)
                 current_paths[path] = True
                 
