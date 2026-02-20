@@ -101,7 +101,38 @@ Envie para a Branch (git push origin feature/NovaFuncionalidade).
 
 Abra um Pull Request.
 
+
+* Diagnostico
+
+Como usar o Diagnóstico
+Sempre que mudar o Token ou a senha do FTP, rode: python check_health.py.
+
+Ele vai te dizer exatamente onde está o erro (se é no login do FTP, na URL da API ou no Token expirado).
+
+
+* Diagrama
+
+                [ LOCAL MACHINE ]                    [ REMOTE DESTINATIONS ]
+              +-----------------+                  +------------------------+
+              |  WATCH FOLDER   |                  |    API (Supabase)      |
+              |  (Files/Dirs)   |                  |  [mkdir] [upload] [del]|
+              +--------+--------+                  +-----------^------------+
+                       |                                       |
+                       v           (HTTPS / REST)              |
+              +-----------------+------------------------------+
+              |   SYNC AGENT    |
+              |  (Python Core)  <------[ config.json ]
+              +--------+--------+
+                       |           (FTP Protocol)              |
+           [sync_db.json]      |                               |
+           (Hashes / IDs)      +-------------------------------+
+                       |                                       |
+                       v                               +-------v--------+
+              +-----------------+                      |  FTP SERVER    |
+              |  LOCAL TRACKING |                      | [mkd] [stor]   |
+              +-----------------+                      +----------------+
+
 📄 Licença
 Distribuído sob a licença MIT. Veja LICENSE para mais informações.
 
-Desenvolvido por  🚀
+Desenvolvido por  Rodinei Amorim / Rudi H Amorim

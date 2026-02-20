@@ -3,6 +3,7 @@ import time
 import hashlib
 import json
 import requests
+import uuid
 from ftplib import FTP
 from io import BytesIO
 
@@ -111,7 +112,110 @@ class FTPTransport:
         except Exception as e:
             print(f"⚠️ Aviso FTP delete: {e}")
             return False
+
+class SpeedProTransport:
+    def __init__(self, config):
+        self.base_url = config['BASE_URL']
+        self.auth_url = self.base_url + config['AUTH_URL']
+        self.manager_url = self.base_url + config['MANAGER_URL']
+        self.upload_url = self.base_url + config['UPLOAD_URL']
+        self.registerfile_url = self.base_url + config['REGISTERFILE_URL']
+        self.email = config['EMAIL']
+        self.password = config['PASSWORD']
+        self.api_key = config['APIKEY']
+        self.token = None
+        self.user_id = None
+        self._authenticate()
+
+    def _authenticate(self):
+        """Realiza o login e obtém o access_token."""
+        print("🔑 SpeedPro: Autenticando...")
+        payload = {
+            "email": self.email,
+            "password": self.password
+        }
         
+        if self.api_key:
+            headers = {"apikey": self.api_key} 
+        else:
+            headers = {}
+        
+        try:
+            r = requests.post(self.auth_url, json=payload, headers=headers)
+            if r.status_code == 200:
+                self.token = r.json().get('access_token')
+                self.user_id = r.json().get('user').get('id')
+                print("✅ SpeedPro: Autenticado com sucesso!")
+            else:
+                print(f"❌ SpeedPro Auth Erro: {r.status_code} - {r.text}")
+        except Exception as e:
+            print(f"❌ SpeedPro Auth Falha: {e}")
+
+    @property
+    def headers(self):
+        """Retorna os headers sempre atualizados com o token."""
+        return {
+            "Authorization": f"Bearer {self.token}",
+            "apikey": self.api_key,
+            "Content-Type" : "application/json"
+        }
+
+    def mkdir(self, name, parent_id=None):
+        print(f"criando diretorio {name}")
+        payload = {"name": name, "parent_id": parent_id}
+        r = requests.post(f"{self.base_url}?action=mkdir", headers=self.headers, json=payload)
+        return r.json().get('id') if r.status_code in [200, 201] else None
+
+    def upload(self, local_path, filename, folder_id=None):
+        with open(local_path, 'rb') as f:
+            payload = f.read()
+            filename_uuid = uuid.uuid4()
+            extensao = os.path.splitext(filename)
+            r = requests.post(f"{self.upload_url}/{self.user_id}/{filename_uuid}.{extensao}", 
+                              headers=self.headers, 
+                              data=payload)
+            if r.json().get('Id'):
+                print("arquivo enviado, agora registrando na tabela de arquivos")
+                
+                url = self.registerfile_url
+
+                # Definição dos headers conforme a especificação
+                headers = self.headers
+                headers['Prefer'] = "return=representation"
+
+                # Dados do registro a ser criado
+                payload = {
+                    "name": filename,
+                    "file_type": "document",
+                    "size_bytes": len(payload),
+                    "storage_path": f"{self.user_id}/{filename_uuid}.pdf",
+                    "folder_id": None, 
+                    "user_id": f"{self.user_id}"
+                    }
+
+                try:
+                    # Realizando a chamada POST enviando o payload como JSON
+                    response = requests.post(url, headers=headers, json=payload)
+
+                    # Validação do status da resposta
+                    if response.ok:
+                        print("Registro criado com sucesso na tabela 'files'!")
+                        print(f"Dados retornados: {response.json()}")
+                    else:
+                        print(f"Falha ao criar registro. Status: {response.status_code}")
+                        print(f"Erro: {response.text}")
+
+                except requests.exceptions.RequestException as e:
+                    print(f"Erro de conexão ou na requisição: {e}")                
+                
+            return r.json().get('Id') if r.status_code == 200 else None
+
+    def delete(self, item_id, is_folder=False):
+        payload = {"id": item_id, "type": "folder" if is_folder else "file", "permanent": False}
+        r = requests.post(f"{self.base_url}?action=delete", headers=self.headers, json=payload)
+        return r.status_code == 200
+    
+            
 # --- CORE DO AGENTE ---
 
 class SyncAgent:
@@ -126,6 +230,8 @@ class SyncAgent:
             self.transports["api"] = APITransport(self.config.data['API_CONFIG'])
         if self.config.DESTINATIONS.get("ftp"):
             self.transports["ftp"] = FTPTransport(self.config.data['FTP_CONFIG'])
+        if self.config.DESTINATIONS.get("speedpro"):
+            self.transports["speedpro"] = SpeedProTransport(self.config.data['SPEEDPRO_CONFIG'])            
 
     def _load_db(self):
         if os.path.exists(self.db_path):
@@ -191,6 +297,10 @@ class SyncAgent:
                         res_id = self.transports["ftp"].upload(path, name, relative_path)
                         if res_id: ids["ftp"] = res_id
 
+                    if "speedpro" in self.transports:
+                        res_id = self.transports["speedpro"].upload(path, name, relative_path)
+                        if res_id: ids["speedpro"] = res_id
+                        
                     if ids:
                         self.db[path] = {"type": "file", "hash": f_hash, "ids": ids}
                         self._save_db()
