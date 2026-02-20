@@ -2,3 +2,5 @@ config.json
 sync_db.json
 token.json
 credentials.json
+dist/
+build/
