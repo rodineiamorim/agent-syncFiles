@@ -42,25 +42,37 @@ Configure suas credenciais:
 Edite o arquivo config.json gerado na raiz do projeto com suas informações de API ou FTP.
 
 {
-    "WATCH_DIRECTORY": "<pasta que deseja sincronizar>",
-    "CHECK_INTERVAL": <segundos>,
-    "MAX_FILE_SIZE_MB": <tamanho em mega, ex: 50 = 50MB>,
+    "WATCH_DIRECTORY": "<pasta origem dos arquivos>",
+    "CHECK_INTERVAL": <minutos / intervalo de integracao>,
+    "MAX_FILE_SIZE_MB": <tamanho maximo em MB do arquivo a ser importado>,
     "SYNC_DESTINATIONS": {
-        "api": true,
-        "ftp": true
+        "api": <true ou false para api de integracao>,
+        "ftp": <true ou false para sincronia via ftp>,
+        "speedpro": <true ou false para usar o serviço speedpro de storage>
     },
     "API_CONFIG": {
-        "URL": "<url da sua storage>",
-        "TOKEN": "<token bearer de autenticacao>",
-         "RECURSIVE_RM": true ou false <exclusao recursiva>
+        "URL": "<url da api de integracao>",
+        "TOKEN": "<token da api>",
+        "RECURSIVE_RM": <true or false para leitura recursiva>
     },
     "FTP_CONFIG": {
-        "HOST": "<host do servidor ftp>,
-        "USER": "<usuario>",
-        "PASS": "<senha>",
-        "REMOTE_DIR": "<pasta de destino, ex: /backup>",
-        "USE_TLS": false,
-        "RECURSIVE_RM": true ou false <exclusao recursiva>
+        "HOST": "<IP ou host do FTP>",
+        "USER": "<usuario do ftp>",
+        "PASS": "<senha do ftp>",
+        "REMOTE_DIR": "<pasta destino>",
+        "USE_TLS": <true ou false para uso do TLS>,
+        "RECURSIVE_RM": <true or false para leitura recursiva>
+    },
+    "SPEEDPRO_CONFIG":{
+        "BASE_URL" : "https://ylhuinvbvqwleknpwljs.supabase.co",
+        "AUTH_URL": "/auth/v1/token?grant_type=password",
+        "MANAGER_URL" : "/functions/v1/filesync",
+        "UPLOAD_URL" : "/storage/v1/object/user-files",
+        "REGISTERFILE_URL" : "/rest/v1/files",
+        "EMAIL": "<email autenticado na speedpro>",
+        "PASSWORD": "<senha da conta>",
+        "APIKEY": "token recebido / gerado",
+        "RECURSIVE_RM": <true or false para leitura recursiva>
     }
 }
 
@@ -87,6 +99,8 @@ FTPTransport: Implementação para comunicação via protocolo FTP clássico.
 [ ] Sincronização bidirecional (baixar mudanças do servidor).
 
 [ ] Interface gráfica (Tray Icon) para monitoramento visual.
+
+[X] Interface gráfica para configuração.
 
 🤝 Contribuições
 Contribuições são o que fazem a comunidade open source um lugar incrível para aprender, inspirar e criar.
