@@ -71,13 +71,19 @@ class AppSync:
   def start_agent(self):
     if self.process is None:
       try:
-        # sys.executable garante que use o mesmo interpretador (importante para venv)
+        # Definimos o ambiente para UTF-8 explicitamente para o processo filho
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+
         self.process = subprocess.Popen(
-          [sys.executable, "agent.py"],
+          [sys.executable, "-u", "agent.py"], # O "-u" força o modo UNBUFFERED
           stdout=subprocess.PIPE,
           stderr=subprocess.STDOUT,
           text=True,
-          bufsize=1
+          bufsize=1,
+          encoding='utf-8',
+          errors='replace',
+          env=env # Passa o ambiente configurado
         )
         threading.Thread(target=self.read_output, daemon=True).start()
         self.update_buttons("running")

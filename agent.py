@@ -6,6 +6,10 @@ import requests
 import uuid
 from ftplib import FTP
 from io import BytesIO
+import sys
+
+os.environ["PYTHONIOENCODING"] = "utf-8"
+sys.stdout.reconfigure(encoding='utf-8')
 
 class Config:
     def __init__(self, path="config.json"):
